@@ -1,19 +1,45 @@
-# 忽略所有node_modules文件夹
-/node_modules/
+# 依赖文件
+node_modules/
+**/node_modules/
 
-# 忽略构建后的dist文件夹
-/dist/
+# 构建输出
+dist/
+build/
+*.log
 
-# 忽略打包配置文件
-/webpack.config.js
-
-# 忽略.env文件
+# 环境变量
 .env
+.env.local
+.env*.local
 
-# 忽略其他不必要文件
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# 忽略特定目录
-/.idea/
-/.vscode/
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 打包文件
+*.zip
+*.tar.gz
+
+# 其他
+*.pem
+*.key
+*.p12
+*.jks
+*.mobileprovision
