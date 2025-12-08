@@ -1,0 +1,19 @@
+# 忽略所有node_modules文件夹
+/node_modules/
+
+# 忽略构建后的dist文件夹
+/dist/
+
+# 忽略打包配置文件
+/webpack.config.js
+
+# 忽略.env文件
+.env
+
+# 忽略其他不必要文件
+.DS_Store
+Thumbs.db
+
+# 忽略特定目录
+/.idea/
+/.vscode/
