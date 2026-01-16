@@ -1,0 +1,70 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ThemedBackground renders default background when no theme is selected 1`] = `
+<View
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#ffffff",
+      },
+      undefined,
+    ]
+  }
+>
+  <View />
+</View>
+`;
+
+exports[`ThemedBackground renders gradient background when gradient theme is selected 1`] = `
+<LinearGradient
+  colors={
+    [
+      "#ff9966",
+      "#ff5e62",
+    ]
+  }
+  end={
+    {
+      "x": 1,
+      "y": 1,
+    }
+  }
+  start={
+    {
+      "x": 0,
+      "y": 0,
+    }
+  }
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      undefined,
+    ]
+  }
+>
+  <View />
+</LinearGradient>
+`;
+
+exports[`ThemedBackground renders solid background when solid theme is selected 1`] = `
+<View
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#007AFF",
+      },
+      undefined,
+    ]
+  }
+>
+  <View />
+</View>
+`;
