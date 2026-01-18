@@ -1,16 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BackgroundTheme, AVAILABLE_THEMES, UserCoins, DEFAULT_USER_COINS, COIN_REWARDS } from '../types/theme';
-
-// API URL 配置
-const API_URL = __DEV__
-    ? Platform.OS === 'android'
-        ? 'http://10.0.2.2:3000'
-        : 'http://localhost:3000'
-    : 'http://your-server-ip:3000';
+import { API_URL } from '@/utils/apiConfig';
 
 interface CoinContextType {
     // 货币状态

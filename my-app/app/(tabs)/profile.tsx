@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,24 +11,21 @@ import {
   Platform,
   Switch,
   Modal,
+  ImageBackground,
+  Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useUser } from '@/contexts/UserContext';
 import { useTags } from '@/contexts/TagContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useCoins } from '@/contexts/CoinContext';
+import { useCoins } from '@/modules/coins/context/CoinContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Tag } from '@/types/todo';
 import ThemedBackground from '@/components/ThemedBackground';
-
-// For Android emulator, use 10.0.2.2 instead of localhost
-const API_URL = __DEV__
-  ? Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000'
-    : 'http://localhost:3000'
-  : 'http://your-server-ip:3000';
+import { API_URL } from '@/utils/apiConfig';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -41,7 +38,7 @@ export default function ProfileScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -49,6 +46,60 @@ export default function ProfileScreen() {
   const [newTagColor, setNewTagColor] = useState('#007AFF');
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userMotto, setUserMotto] = useState<string | null>(null);
+
+  // 加载用户头像
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      loadUserAvatar();
+    }
+  }, [isLoggedIn, currentUser]);
+
+  // 当页面获得焦点时刷新头像和座右铭（从编辑页面返回时）
+  useFocusEffect(
+    useCallback(() => {
+      if (isLoggedIn && currentUser) {
+        console.log('Profile page focused, reloading user data...');
+        loadUserAvatar();
+      }
+    }, [isLoggedIn, currentUser])
+  );
+
+  // 获取容器背景颜色（根据主题商店选择的主题）
+  const getContainerBackgroundColor = () => {
+    if (currentThemeData && !currentThemeData.isDefault) {
+      if (currentThemeData.type === 'gradient' && currentThemeData.colors.length > 0) {
+        // 渐变主题：使用第一种颜色，但添加半透明效果以保持可读性
+        // 或者使用浅色覆盖层
+        return currentThemeData.colors[0];
+      } else if (currentThemeData.type === 'solid' && currentThemeData.colors.length > 0) {
+        // 纯色主题：使用主题颜色
+        return currentThemeData.colors[0];
+      }
+    }
+    // 默认主题：使用 colors.surface
+    return colors.surface;
+  };
+
+  const loadUserAvatar = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/users/${currentUser}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded user data:', { avatar: data.avatar, motto: data.motto, allData: data });
+        setUserAvatar(data.avatar || null);
+        // 座右铭：和用户名一样，直接设置，没有就用 null
+        setUserMotto(data.motto || null);
+      } else {
+        console.error('Failed to load user data:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading user avatar:', error);
+    }
+  };
 
   // Handle notification toggle
   const handleNotificationToggle = async (enabled: boolean) => {
@@ -108,6 +159,7 @@ export default function ProfileScreen() {
         Alert.alert('Success', 'Login successful!');
         setUsername('');
         setPassword('');
+        setConfirmPassword('');
       } else {
         Alert.alert('Error', data.error || 'Login failed');
       }
@@ -124,19 +176,27 @@ export default function ProfileScreen() {
   };
 
   const handleRegister = async () => {
-    if (!username.trim() || !password.trim() || !email.trim()) {
+    if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     setLoading(true);
     try {
+      // 生成一个默认邮箱（使用用户名）
+      const defaultEmail = `${username}@example.com`;
+      
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password, email }),
+        body: JSON.stringify({ username, password, email: defaultEmail }),
       });
 
       // Check if response is JSON
@@ -154,7 +214,7 @@ export default function ProfileScreen() {
         setIsLogin(true);
         setUsername('');
         setPassword('');
-        setEmail('');
+        setConfirmPassword('');
       } else {
         Alert.alert('Error', data.error || 'Registration failed');
       }
@@ -172,18 +232,18 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('logout'),
+      t('logout_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('logout'),
           style: 'destructive',
           onPress: () => {
             logout();
             setUsername('');
             setPassword('');
-            setEmail('');
+            setConfirmPassword('');
           },
         },
       ]
@@ -240,12 +300,12 @@ export default function ProfileScreen() {
 
   const handleDeleteTag = (tag: Tag) => {
     Alert.alert(
-      'Delete Tag',
-      `Are you sure you want to delete "${tag.name}"?`,
+      t('delete_tag'),
+      t('delete_tag_confirm', { tagName: tag.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: () => deleteTag(tag.id),
         },
@@ -289,34 +349,91 @@ export default function ProfileScreen() {
       <ThemedBackground>
         <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={[styles.profileHeader, { backgroundColor: colors.surface }]}>
-              <View style={styles.avatarContainer}>
-                <Ionicons name="person-circle" size={80} color={colors.primary} />
-              </View>
-              <Text style={[styles.usernameText, { color: colors.text }]}>{currentUser}</Text>
-              <Text style={[styles.emailText, { color: colors.textSecondary }]}>{t('user_profile')}</Text>
-
-              {/* Coin Balance Card */}
-              <TouchableOpacity
-                style={styles.coinCard}
-                onPress={() => router.push('/shop' as any)}
-                activeOpacity={0.8}
+            {currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient' ? (
+              <LinearGradient
+                colors={currentThemeData.colors as [string, string, ...string[]]}
+                style={styles.profileHeader}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
-                <View style={styles.coinCardLeft}>
-                  <Ionicons name="logo-bitcoin" size={24} color="#FFD700" />
-                  <Text style={styles.coinBalance}>{balance}</Text>
-                  <Text style={[styles.coinLabel, { color: colors.textSecondary }]}>{t('coins')}</Text>
-                </View>
-                <View style={styles.coinCardRight}>
-                  <Text style={styles.streakText}>🔥 {loginStreak}</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity 
+                  style={styles.avatarContainer}
+                  onPress={() => router.push('/edit-profile' as any)}
+                  activeOpacity={0.7}
+                >
+                  {userAvatar ? (
+                    <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+                  ) : (
+                    <Ionicons name="person-circle" size={80} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+                <Text style={[styles.usernameText, { color: colors.text }]}>{currentUser}</Text>
+                <Text style={[styles.emailText, { color: colors.textSecondary }]}>
+                  {userMotto || t('motto')}
+                </Text>
+
+                {/* Coin Balance Card */}
+                <TouchableOpacity
+                  style={styles.coinCard}
+                  onPress={() => router.push('/shop' as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.coinCardLeft}>
+                    <Ionicons name="logo-bitcoin" size={24} color="#FFD700" />
+                    <Text style={styles.coinBalance}>{balance}</Text>
+                    <Text style={[styles.coinLabel, { color: colors.textSecondary }]}>{t('coins')}</Text>
+                  </View>
+                  <View style={styles.coinCardRight}>
+                    <Text style={styles.streakText}>🔥 {loginStreak}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              </LinearGradient>
+            ) : (
+              <View style={[
+                styles.profileHeader,
+                currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0
+                  ? { backgroundColor: currentThemeData.colors[0] }
+                  : { backgroundColor: colors.surface }
+              ]}>
+                <TouchableOpacity 
+                  style={styles.avatarContainer}
+                  onPress={() => router.push('/edit-profile' as any)}
+                  activeOpacity={0.7}
+                >
+                  {userAvatar ? (
+                    <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+                  ) : (
+                    <Ionicons name="person-circle" size={80} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+                <Text style={[styles.usernameText, { color: colors.text }]}>{currentUser}</Text>
+                <Text style={[styles.emailText, { color: colors.textSecondary }]}>
+                  {userMotto || t('motto')}
+                </Text>
+
+                {/* Coin Balance Card */}
+                <TouchableOpacity
+                  style={styles.coinCard}
+                  onPress={() => router.push('/shop' as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.coinCardLeft}>
+                    <Ionicons name="logo-bitcoin" size={24} color="#FFD700" />
+                    <Text style={styles.coinBalance}>{balance}</Text>
+                    <Text style={[styles.coinLabel, { color: colors.textSecondary }]}>{t('coins')}</Text>
+                  </View>
+                  <View style={styles.coinCardRight}>
+                    <Text style={styles.streakText}>🔥 {loginStreak}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tag_management')}</Text>
-              <View style={[styles.settingsContainer, { backgroundColor: colors.surface }]}>
+              <View style={[styles.settingsContainer, { backgroundColor: getContainerBackgroundColor() }]}>
                 <View style={styles.tagsList}>
                   {tags.map((tag) => (
                     <View key={tag.id} style={[styles.tagItem, { borderBottomColor: colors.border }]}>
@@ -353,7 +470,7 @@ export default function ProfileScreen() {
 
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('settings')}</Text>
-              <View style={[styles.settingsContainer, { backgroundColor: colors.surface }]}>
+              <View style={[styles.settingsContainer, { backgroundColor: getContainerBackgroundColor() }]}>
                 <SettingItem
                   icon="notifications-outline"
                   title={t('notifications')}
@@ -581,62 +698,196 @@ export default function ProfileScreen() {
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {isLogin ? 'Login' : 'Register'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isLogin
-              ? 'Welcome back! Please login to continue'
-              : 'Create a new account to get started'}
-          </Text>
-        </View>
+  // 如果未登录，使用背景图片
+  if (!isLoggedIn) {
+    return (
+      <ImageBackground
+        source={require('@/assets/images/login-background.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
+        <SafeAreaView style={styles.containerTransparent}>
+          <ScrollView 
+            contentContainerStyle={[styles.scrollContent, styles.scrollContentCentered]}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[
+              styles.loginContainer, 
+              styles.loginContainerBordered,
+              { backgroundColor: '#FFF8E1', borderColor: colors.border }
+            ]}>
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {isLogin ? 'Login' : 'Register'}
+                </Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  {isLogin
+                    ? 'Welcome back! Please login to continue'
+                    : 'Create a new account to get started'}
+                </Text>
+              </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+              <View style={styles.form}>
+              <View style={[
+                styles.inputGroup,
+                { backgroundColor: '#FFF8E1', borderColor: colors.border }
+              ]}>
+                <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Username"
+                  placeholderTextColor={colors.textSecondary}
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={[
+                styles.inputGroup,
+                { backgroundColor: '#FFF8E1', borderColor: colors.border }
+              ]}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              {!isLogin && (
+                <View style={[
+                  styles.inputGroup,
+                  { backgroundColor: '#FFF8E1', borderColor: colors.border }
+                ]}>
+                  <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Confirm Password"
+                    placeholderTextColor={colors.textSecondary}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.button, 
+                  loading && styles.buttonDisabled,
+                  { backgroundColor: '#87CEEB' }
+                ]}
+                onPress={isLogin ? handleLogin : handleRegister}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? 'Loading...' : isLogin ? 'Login' : 'Register'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => {
+                  setIsLogin(!isLogin);
+                  setUsername('');
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+              >
+                <Text style={[styles.switchButtonText, { color: '#87CEEB' }]}>
+                  {isLogin
+                    ? "Don't have an account? Register"
+                    : 'Already have an account? Login'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </ImageBackground>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[
+          styles.loginContainer, 
+          !isLoggedIn && styles.loginContainerBordered,
+          !isLoggedIn && { backgroundColor: colors.surface, borderColor: colors.border }
+        ]}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {isLogin ? 'Login' : 'Register'}
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              {isLogin
+                ? 'Welcome back! Please login to continue'
+                : 'Create a new account to get started'}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+          <View style={[
+            styles.inputGroup,
+            { backgroundColor: colors.surface, borderColor: colors.border }
+          ]}>
+            <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text }]}
               placeholder="Username"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
             />
           </View>
 
-          {!isLogin && (
-            <View style={styles.inputGroup}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputGroup,
+            { backgroundColor: colors.surface, borderColor: colors.border }
+          ]}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#999"
+              style={[styles.input, { color: colors.text }]}
+              placeholder={t('password')}
+              placeholderTextColor={colors.textSecondary}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
           </View>
 
+          {!isLogin && (
+            <View style={[
+              styles.inputGroup,
+              { backgroundColor: colors.surface, borderColor: colors.border }
+            ]}>
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder={t('confirm_password')}
+                placeholderTextColor={colors.textSecondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+            </View>
+          )}
+
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[
+              styles.button, 
+              loading && styles.buttonDisabled,
+              { backgroundColor: colors.primary }
+            ]}
             onPress={isLogin ? handleLogin : handleRegister}
             disabled={loading}
           >
@@ -648,18 +899,19 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.switchButton}
             onPress={() => {
-              setIsLogin(!isLogin);
-              setUsername('');
-              setPassword('');
-              setEmail('');
+                  setIsLogin(!isLogin);
+                  setUsername('');
+                  setPassword('');
+                  setConfirmPassword('');
             }}
           >
-            <Text style={styles.switchButtonText}>
+            <Text style={[styles.switchButtonText, { color: colors.primary }]}>
               {isLogin
                 ? "Don't have an account? Register"
                 : 'Already have an account? Login'}
             </Text>
           </TouchableOpacity>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -671,9 +923,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  containerTransparent: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   scrollContent: {
     flexGrow: 1,
     padding: 20,
+  },
+  scrollContentCentered: {
+    justifyContent: 'center',
+    minHeight: '100%',
+  },
+  loginContainer: {
+    width: '100%',
+  },
+  loginContainerBordered: {
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    // backgroundColor and borderColor will be set dynamically
   },
   header: {
     marginBottom: 30,
@@ -696,7 +978,7 @@ const styles = StyleSheet.create({
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f8f8',
     borderRadius: 8,
     marginBottom: 16,
     paddingHorizontal: 12,
@@ -749,6 +1031,12 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: 16,
+    alignItems: 'center',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   usernameText: {
     fontSize: 24,
@@ -771,7 +1059,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   settingsContainer: {
-    backgroundColor: '#fff',
+    // backgroundColor 会在使用时通过内联样式动态设置 colors.surface
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',

@@ -53,10 +53,25 @@ export default function CalendarHorizontal({ onDateSelect }: CalendarHorizontalP
   }, []);
 
   const getTasksForDate = (date: Date) => {
-    const dateStr = date.toDateString();
+    // 使用 UTC 日期进行比较，避免时区问题
+    const dateYear = date.getUTCFullYear();
+    const dateMonth = date.getUTCMonth();
+    const dateDay = date.getUTCDate();
+    
     return todos.filter((todo) => {
-      const todoDate = new Date(todo.createdAt);
-      return todoDate.toDateString() === dateStr;
+      // 如果有 completedAt（结束时间），使用 completedAt 的日期
+      // 否则使用 createdAt 的日期
+      const todoDate = todo.completedAt 
+        ? new Date(todo.completedAt)
+        : new Date(todo.createdAt);
+      // 使用 UTC 日期进行比较，避免时区问题
+      const todoYear = todoDate.getUTCFullYear();
+      const todoMonth = todoDate.getUTCMonth();
+      const todoDay = todoDate.getUTCDate();
+      
+      return todoYear === dateYear && 
+             todoMonth === dateMonth && 
+             todoDay === dateDay;
     });
   };
 
@@ -134,7 +149,7 @@ export default function CalendarHorizontal({ onDateSelect }: CalendarHorizontalP
                       styles.taskBar,
                       {
                         width: `${(completedTasks / totalTasks) * 100}%`,
-                        backgroundColor: completedTasks === totalTasks ? '#34C759' : colors.primary,
+                        backgroundColor: colors.primary,
                       },
                     ]}
                   />

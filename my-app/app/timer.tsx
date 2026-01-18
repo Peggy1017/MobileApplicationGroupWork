@@ -12,14 +12,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import CoinRewardToast from '@/components/CoinRewardToast';
 import ThemedBackground from '@/components/ThemedBackground';
+import { API_URL } from '@/utils/apiConfig';
 
 import Svg, { Circle, Line, G } from 'react-native-svg';
-
-const API_URL = __DEV__
-  ? Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000'
-    : 'http://localhost:3000'
-  : 'http://your-server-ip:3000';
 
 const { width } = Dimensions.get('window');
 const TIMER_SIZE = width * 0.85;
@@ -153,7 +148,7 @@ export default function TimerScreen() {
     const durationText = displayMinutes > 0 
       ? `${displayMinutes}${t('minutes')} ${displaySeconds}${t('seconds')}`
       : `${durationSeconds}${t('seconds')}`;
-    
+
     Alert.alert(
       t('stop_timer'),
       `${t('task_duration')}: ${durationText}\n\n${t('is_task_completed', { taskName })}`,
@@ -200,8 +195,8 @@ export default function TimerScreen() {
       return;
     }
 
-    try {
-      const endTime = new Date();
+      try {
+        const endTime = new Date();
       const updateData: any = {
         duration: durationMinutes,
         startedAt: startTime,
@@ -210,9 +205,9 @@ export default function TimerScreen() {
         userId: currentUser,
       };
 
-      const response = await fetch(`${API_URL}/api/todos/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(`${API_URL}/api/todos/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
 

@@ -36,14 +36,27 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
     let startDate = new Date(targetDate);
     startDate.setHours(0, 0, 0, 0);
 
-    // 计算结束日期（选定日期的当天结束）
-    const endDate = new Date(targetDate);
+    // 计算结束日期
+    let endDate = new Date(targetDate);
     endDate.setHours(23, 59, 59, 999);
 
     if (period === 'week') {
-      startDate.setDate(targetDate.getDate() - 7);
+      // Week: 显示目标日期所在周（从周一到周日）
+      const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 如果是周日，距离周一6天；否则减1
+      startDate.setDate(targetDate.getDate() - daysFromMonday);
+      startDate.setHours(0, 0, 0, 0);
+      // 结束日期是这周的周日
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
     } else if (period === 'month') {
-      startDate.setMonth(targetDate.getMonth() - 1);
+      // Month: 显示目标日期所在月（从1号开始到最后一天）
+      startDate.setDate(1); // 设置为当月1号
+      startDate.setHours(0, 0, 0, 0);
+      // 结束日期是当月的最后一天
+      endDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // 下个月的第0天 = 当月的最后一天
+      endDate.setHours(23, 59, 59, 999);
     }
 
     // Filter tasks with duration (completed or with start/end time)
@@ -133,8 +146,8 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
     let startDate = new Date(targetDate);
     startDate.setHours(0, 0, 0, 0);
 
-    // 计算结束日期（选定日期的当天结束）
-    const endDate = new Date(targetDate);
+    // 计算结束日期
+    let endDate = new Date(targetDate);
     endDate.setHours(23, 59, 59, 999);
 
     let days = 1;
@@ -142,13 +155,27 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
     let blocksPerHour = 6; // For day: 6 blocks per hour (10 min each)
 
     if (period === 'week') {
+      // Week: 显示目标日期所在周（从周一到周日）
       days = 7;
       blocksPerHour = 1; // 1 block per hour
-      startDate.setDate(targetDate.getDate() - 7);
+      const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 如果是周日，距离周一6天；否则减1
+      startDate.setDate(targetDate.getDate() - daysFromMonday);
+      startDate.setHours(0, 0, 0, 0);
+      // 结束日期是这周的周日
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
     } else if (period === 'month') {
-      days = 30;
+      // Month: 显示目标日期所在月（从1号开始到最后一天）
+      startDate.setDate(1); // 设置为当月1号
+      startDate.setHours(0, 0, 0, 0);
+      // 结束日期是当月的最后一天
+      endDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // 下个月的第0天 = 当月的最后一天
+      endDate.setHours(23, 59, 59, 999);
+      // 计算当月的天数
+      days = endDate.getDate();
       blocksPerHour = 1; // 1 block per hour
-      startDate.setMonth(targetDate.getMonth() - 1);
     }
 
     const totalBlocks = days * hoursPerDay * blocksPerHour;
@@ -404,9 +431,15 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
       startDate.setHours(0, 0, 0, 0);
 
       if (period === 'week') {
-        startDate.setDate(targetDate.getDate() - 7);
+        // Week: 显示目标日期所在周（从周一到周日）
+        const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 如果是周日，距离周一6天；否则减1
+        startDate.setDate(targetDate.getDate() - daysFromMonday);
+        startDate.setHours(0, 0, 0, 0);
       } else if (period === 'month') {
-        startDate.setMonth(targetDate.getMonth() - 1);
+        // Month: 显示目标日期所在月（从1号开始到最后一天）
+        startDate.setDate(1); // 设置为当月1号
+        startDate.setHours(0, 0, 0, 0);
       }
 
       const dayLabels = period === 'week'
@@ -489,7 +522,7 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
           </View>
           <View style={styles.metricItem}>
             <Text style={[styles.metricValue, { color: colors.text }]}>
-              {totalHours}h {remainingMinutes}m
+              {totalHours}h {remainingMinutes.toFixed(2)}m
             </Text>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{t('total_duration')}</Text>
           </View>
@@ -573,10 +606,12 @@ export default function TimeBlocksVisualization({ todos, period = 'day', date = 
                 <Text style={[styles.tagDuration, { color: colors.textSecondary }]}>
                   {hours > 0 ? `${hours}h ` : ''}
                   {remainingMinutes < 1 && remainingMinutes > 0
-                    ? `${Math.round(remainingMinutes * 60)}s`
+                    ? `${(remainingMinutes * 60).toFixed(2)}s`
                     : remainingMinutes >= 1
-                      ? `${Math.round(remainingMinutes)}m`
-                      : ''}
+                      ? `${remainingMinutes.toFixed(2)}m`
+                      : remainingMinutes > 0
+                        ? `${remainingMinutes.toFixed(2)}m`
+                        : ''}
                 </Text>
               </View>
             );

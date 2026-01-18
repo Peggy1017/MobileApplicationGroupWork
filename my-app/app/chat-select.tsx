@@ -13,13 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@/contexts/UserContext';
 import ThemedBackground from '@/components/ThemedBackground';
-
-// For Android emulator, use 10.0.2.2 instead of localhost
-const API_URL = __DEV__
-  ? Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000'
-    : 'http://localhost:3000'
-  : 'http://your-server-ip:3000';
+import { API_URL } from '@/utils/apiConfig';
 
 interface User {
   _id: string;

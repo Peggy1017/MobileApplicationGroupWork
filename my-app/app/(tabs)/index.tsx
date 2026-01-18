@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, ScrollView } from 'react-native';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { TodoItem } from '@/types/todo';
 import { useTodos } from '@/contexts/TodoContext';
 import { useCoins } from '@/contexts/CoinContext';
@@ -17,25 +18,78 @@ import ThemedBackground from '@/components/ThemedBackground';
 export default function TodayScreen() {
   const router = useRouter();
   const { todos, toggleTodo, deleteTodo: deleteTodoFromContext, updateTodo } = useTodos();
-  const { rewardCoins } = useCoins();
+  const { rewardCoins, currentThemeData } = useCoins();
   const { isLoggedIn } = useUser();
   const { colors } = useTheme();
   const { t } = useLanguage();
+  
+  // 所有 hooks 必须在条件返回之前调用
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [editStartTime, setEditStartTime] = useState<Date | null>(null);
   const [editEndTime, setEditEndTime] = useState<Date | null>(null);
+  const [editTodoName, setEditTodoName] = useState('');
   const [editingTaskName, setEditingTaskName] = useState<TodoItem | null>(null);
   const [editTaskName, setEditTaskName] = useState('');
-
   const [showCoinReward, setShowCoinReward] = useState(false);
   const [coinRewardAmount, setCoinRewardAmount] = useState(0);
 
+  // 检查登录状态，如果未登录则重定向到登录页面
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.replace('/(tabs)/profile');
+    }
+  }, [isLoggedIn, router]);
+
+  // 如果未登录，不渲染内容（等待重定向）
+  if (!isLoggedIn) {
+    return null;
+  }
+
   const filteredTodos = useMemo(() => {
-    const selectedDateStr = selectedDate.toDateString();
+    // 标准化选中的日期（只比较日期部分，忽略时间）
+    // 使用 UTC 日期进行比较，避免时区问题
+    const selectedDateNormalized = new Date(selectedDate);
+    const selectedYear = selectedDateNormalized.getUTCFullYear();
+    const selectedMonth = selectedDateNormalized.getUTCMonth();
+    const selectedDay = selectedDateNormalized.getUTCDate();
+    
+    console.log('filteredTodos - Selected date:', {
+      selectedDate: selectedDate,
+      selectedYear,
+      selectedMonth: selectedMonth + 1,
+      selectedDay,
+    });
+    
     const filtered = todos.filter((todo) => {
-      const todoDate = new Date(todo.createdAt);
-      return todoDate.toDateString() === selectedDateStr;
+      // 如果有 completedAt（结束时间），使用 completedAt 的日期
+      // 否则使用 createdAt 的日期
+      let todoDate: Date;
+      if (todo.completedAt) {
+        todoDate = new Date(todo.completedAt);
+      } else {
+        todoDate = new Date(todo.createdAt);
+      }
+      // 使用 UTC 日期进行比较，避免时区问题
+      const todoYear = todoDate.getUTCFullYear();
+      const todoMonth = todoDate.getUTCMonth();
+      const todoDay = todoDate.getUTCDate();
+      
+      const matches = todoYear === selectedYear && 
+                      todoMonth === selectedMonth && 
+                      todoDay === selectedDay;
+      
+      if (matches) {
+        console.log('filteredTodos - Matching task:', {
+          text: todo.text,
+          todoYear,
+          todoMonth: todoMonth + 1,
+          todoDay,
+          createdAt: todo.createdAt,
+        });
+      }
+      
+      return matches;
     });
 
     // Sort by priority: tasks with lower priority number come first
@@ -84,6 +138,7 @@ export default function TodayScreen() {
     if (!item.completed) return;
 
     setEditingTodo(item);
+    setEditTodoName(item.text);
     setEditStartTime(item.startedAt ? new Date(item.startedAt) : new Date());
     setEditEndTime(item.completedAt ? new Date(item.completedAt) : new Date());
   };
@@ -106,33 +161,54 @@ export default function TodayScreen() {
     setEditTaskName('');
   };
 
-  const handleSaveTimeEdit = () => {
+  const handleSaveTimeEdit = async () => {
     if (!editingTodo || !editStartTime || !editEndTime) return;
+
+    // 如果 completedAt 的日期改变了，自动切换到新日期
+    const oldCompletedDate = editingTodo.completedAt 
+      ? new Date(editingTodo.completedAt)
+      : null;
+    const newCompletedDate = new Date(editEndTime);
+    
+    // 标准化日期（只比较日期部分）
+    if (oldCompletedDate) {
+      oldCompletedDate.setHours(0, 0, 0, 0);
+    }
+    newCompletedDate.setHours(0, 0, 0, 0);
+    
+    // 如果日期改变了，切换到新日期
+    const dateChanged = !oldCompletedDate || oldCompletedDate.getTime() !== newCompletedDate.getTime();
+    if (dateChanged) {
+      setSelectedDate(new Date(newCompletedDate));
+    }
 
     const updatedTodo = {
       ...editingTodo,
+      text: editTodoName.trim() || editingTodo.text, // 保存任务名称，如果为空则使用原名称
       startedAt: editStartTime,
       completedAt: editEndTime,
+      completed: true, // 确保任务标记为已完成
     };
 
     // Calculate duration from start and end time
     const durationMs = editEndTime.getTime() - editStartTime.getTime();
     updatedTodo.duration = Math.round(durationMs / (1000 * 60)); // Convert to minutes
 
-    updateTodo(updatedTodo);
+    await updateTodo(updatedTodo);
     setEditingTodo(null);
+    setEditTodoName('');
     setEditStartTime(null);
     setEditEndTime(null);
   };
 
   const handleDeleteTodo = (id: string) => {
     Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
+      t('delete_task'),
+      t('delete_task_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: () => deleteTodoFromContext(id),
         },
@@ -154,7 +230,7 @@ export default function TodayScreen() {
         style={styles.todoContent}
         onPress={() => {
           if (item.completed) {
-            // 已完成任务：点击可以编辑时间或任务名称
+            // 已完成任务：点击整个卡片进入编辑弹窗
             handleEditTime(item);
           } else {
             handleToggleTodo(item.id);
@@ -212,14 +288,6 @@ export default function TodayScreen() {
             </Text>
           )}
         </View>
-        {item.completed && (
-          <TouchableOpacity
-            style={styles.editNameButton}
-            onPress={() => handleEditTaskName(item)}
-          >
-            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.timerButton}
@@ -249,24 +317,55 @@ export default function TodayScreen() {
   return (
     <ThemedBackground>
       <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface }]}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {selectedDate.toDateString() === new Date().toDateString()
-                ? t('today')
-                : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {t('of_completed', { count: `${completedCount}/${totalCount}` })}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.addIconButton}
-            onPress={() => router.push('/add-task')}
+        {currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient' ? (
+          <LinearGradient
+            colors={currentThemeData.colors as [string, string, ...string[]]}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           >
-            <Ionicons name="add" size={28} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+            <View>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {selectedDate.toDateString() === new Date().toDateString()
+                  ? t('today')
+                  : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {t('of_completed', { count: `${completedCount}/${totalCount}` })}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.addIconButton}
+              onPress={() => router.push('/add-task')}
+            >
+              <Ionicons name="add" size={28} color={colors.primary} />
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : (
+          <View style={[
+            styles.header,
+            currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0
+              ? { backgroundColor: currentThemeData.colors[0] }
+              : { backgroundColor: colors.surface }
+          ]}>
+            <View>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {selectedDate.toDateString() === new Date().toDateString()
+                  ? t('today')
+                  : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {t('of_completed', { count: `${completedCount}/${totalCount}` })}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.addIconButton}
+              onPress={() => router.push('/add-task')}
+            >
+              <Ionicons name="add" size={28} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <CalendarHorizontal onDateSelect={setSelectedDate} />
 
@@ -320,7 +419,12 @@ export default function TodayScreen() {
           visible={editingTodo !== null}
           transparent
           animationType="slide"
-          onRequestClose={() => setEditingTodo(null)}
+          onRequestClose={() => {
+            setEditingTodo(null);
+            setEditTodoName('');
+            setEditStartTime(null);
+            setEditEndTime(null);
+          }}
         >
           <View style={styles.modalOverlay}>
             <ScrollView
@@ -331,17 +435,39 @@ export default function TodayScreen() {
               <View style={styles.modalHeader}>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
-                  onPress={() => setEditingTodo(null)}
+                  onPress={() => {
+                    setEditingTodo(null);
+                    setEditTodoName('');
+                    setEditStartTime(null);
+                    setEditEndTime(null);
+                  }}
                 >
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Time</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{t('edit_task')}</Text>
                 <View style={{ width: 24 }} />
               </View>
-              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{editingTodo?.text}</Text>
 
               <View style={styles.timeInputContainer}>
-                <Text style={[styles.timeLabel, { color: colors.text }]}>Start Time</Text>
+                <Text style={[styles.timeLabel, { color: colors.text }]}>{t('task_name')}</Text>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    { 
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background
+                    }
+                  ]}
+                  value={editTodoName}
+                  onChangeText={setEditTodoName}
+                  placeholder={t('enter_task_name')}
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+
+              <View style={styles.timeInputContainer}>
+                <Text style={[styles.timeLabel, { color: colors.text }]}>{t('start_time')}</Text>
                 {editStartTime && (
                   <DateTimePicker
                     value={editStartTime}
@@ -352,7 +478,7 @@ export default function TodayScreen() {
               </View>
 
               <View style={styles.timeInputContainer}>
-                <Text style={[styles.timeLabel, { color: colors.text }]}>End Time</Text>
+                <Text style={[styles.timeLabel, { color: colors.text }]}>{t('end_time')}</Text>
                 {editEndTime && (
                   <DateTimePicker
                     value={editEndTime}
@@ -365,15 +491,20 @@ export default function TodayScreen() {
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
-                  onPress={() => setEditingTodo(null)}
+                  onPress={() => {
+                    setEditingTodo(null);
+                    setEditTodoName('');
+                    setEditStartTime(null);
+                    setEditEndTime(null);
+                  }}
                 >
-                  <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
+                  <Text style={[styles.cancelButtonText, { color: colors.text }]}>{t('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
                   onPress={handleSaveTimeEdit}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Text style={styles.saveButtonText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -525,10 +656,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: '500',
-  },
-  editNameButton: {
-    padding: 8,
-    marginLeft: 4,
   },
   modalInput: {
     borderWidth: 1,

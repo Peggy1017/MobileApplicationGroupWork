@@ -1,11 +1,14 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTodos } from '@/contexts/TodoContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
+import { useCoins } from '@/modules/coins/context/CoinContext';
 import TimeBlocksVisualization from '@/components/time-blocks-visualization';
 import DateTimePicker from '@/components/date-time-picker';
 import ThemedBackground from '@/components/ThemedBackground';
@@ -13,10 +16,14 @@ import ThemedBackground from '@/components/ThemedBackground';
 type PeriodType = 'day' | 'week' | 'month';
 
 export default function DataScreen() {
+  const router = useRouter();
   const { todos } = useTodos();
-  const { currentUser } = useUser();
-  const { colors } = useTheme();
+  const { currentUser, isLoggedIn } = useUser();
+  const { colors, isDarkMode } = useTheme();
   const { t } = useLanguage();
+  const { currentThemeData } = useCoins();
+
+  // 所有 hooks 必须在条件返回之前调用
   const [period, setPeriod] = useState<PeriodType>('day');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -29,29 +36,8 @@ export default function DataScreen() {
     dailyData: {} as { [key: string]: { total: number; completed: number } },
   });
 
-
-
-  const StatCard = ({ icon, title, value, color }: { icon: string; title: string; value: string | number; color: string }) => {
-    const { colors: themeColors } = useTheme();
-    return (
-      <View style={[styles.statCard, { backgroundColor: themeColors.surface, borderLeftColor: color }]}>
-        <View style={styles.statIconContainer}>
-          <Ionicons name={icon as any} size={24} color={color} />
-        </View>
-        <View style={styles.statContent}>
-          <Text style={[styles.statValue, { color: themeColors.text }]}>{value}</Text>
-          <Text style={[styles.statTitle, { color: themeColors.textSecondary }]}>{title}</Text>
-        </View>
-      </View>
-    );
-  };
-
-  useEffect(() => {
-    calculateLocalStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, currentUser, todos, selectedDate]);
-
-  const calculateLocalStats = () => {
+  // 定义 calculateLocalStats 函数（在 useEffect 之前）
+  const calculateLocalStats = useCallback(() => {
     const targetDate = new Date(selectedDate);
     let startDate = new Date(targetDate);
 
@@ -141,7 +127,7 @@ export default function DataScreen() {
       tagStats: Object.values(tagStatsMap),
       dailyData,
     });
-  };
+  }, [period, selectedDate, todos]);
 
   // Use processed data
   const periodData = useMemo(() => {
@@ -153,28 +139,66 @@ export default function DataScreen() {
     };
   }, [stats]);
 
+  // 检查登录状态，如果未登录则重定向到登录页面
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.replace('/(tabs)/profile');
+    }
+  }, [isLoggedIn, router]);
+
+  // 计算统计数据的 useEffect（必须在所有 hooks 之后）
+  useEffect(() => {
+    calculateLocalStats();
+  }, [calculateLocalStats]);
+
+  // 如果未登录，不渲染内容（等待重定向）
+  if (!isLoggedIn) {
+    return null;
+  }
+
+  const StatCard = ({ icon, title, value, color }: { icon: string; title: string; value: string | number; color: string }) => {
+    const { colors: themeColors } = useTheme();
+    return (
+      <View style={[styles.statCard, { backgroundColor: themeColors.surface, borderLeftColor: color }]}>
+        <View style={styles.statIconContainer}>
+          <Ionicons name={icon as any} size={24} color={color} />
+        </View>
+        <View style={styles.statContent}>
+          <Text style={[styles.statValue, { color: themeColors.text }]}>{value}</Text>
+          <Text style={[styles.statTitle, { color: themeColors.textSecondary }]}>{title}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <ThemedBackground>
       <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface }]}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={[styles.title, { color: colors.text }]}>{t('data')}</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('task_statistics')}</Text>
+        {currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient' ? (
+          <LinearGradient
+            colors={currentThemeData.colors as [string, string, ...string[]]}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={[styles.title, { color: colors.text }]}>{t('data')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('task_statistics')}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dateSelectorButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Ionicons name="calendar" size={20} color={colors.primary} />
+                <Text style={[styles.dateSelectorText, { color: colors.primary }]}>
+                  {selectedDate.toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.dateSelectorButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-              <Text style={[styles.dateSelectorText, { color: colors.primary }]}>
-                {selectedDate.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Period Selector */}
-          <View style={styles.periodSelector}>
+            {/* Period Selector */}
+            <View style={styles.periodSelector}>
             <TouchableOpacity
               style={[
                 styles.periodButton,
@@ -221,7 +245,80 @@ export default function DataScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+          </LinearGradient>
+        ) : (
+          <View style={[
+            styles.header,
+            currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0
+              ? { backgroundColor: currentThemeData.colors[0] }
+              : { backgroundColor: colors.surface }
+          ]}>
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={[styles.title, { color: colors.text }]}>{t('data')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('task_statistics')}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dateSelectorButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Ionicons name="calendar" size={20} color={colors.primary} />
+                <Text style={[styles.dateSelectorText, { color: colors.primary }]}>
+                  {selectedDate.toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Period Selector */}
+            <View style={styles.periodSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.periodButton,
+                  { backgroundColor: colors.background },
+                  period === 'day' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPeriod('day')}
+              >
+                <Text style={[
+                  styles.periodButtonText,
+                  { color: period === 'day' ? '#fff' : colors.text },
+                ]}>
+                  {t('day')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.periodButton,
+                  { backgroundColor: colors.background },
+                  period === 'week' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPeriod('week')}
+              >
+                <Text style={[
+                  styles.periodButtonText,
+                  { color: period === 'week' ? '#fff' : colors.text },
+                ]}>
+                  {t('week')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.periodButton,
+                  { backgroundColor: colors.background },
+                  period === 'month' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPeriod('month')}
+              >
+                <Text style={[
+                  styles.periodButtonText,
+                  { color: period === 'month' ? '#fff' : colors.text },
+                ]}>
+                  {t('month')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Time Blocks Visualization - Show for all periods */}
@@ -353,10 +450,10 @@ export default function DataScreen() {
                         <Text style={[styles.tagStatDurationText, { color: colors.textSecondary }]}>
                           {t('total_duration')}: {
                             stat.totalDuration < 1
-                              ? `${Math.round(stat.totalDuration * 60)}s`
+                              ? `${(stat.totalDuration * 60).toFixed(2)}s`
                               : stat.totalDuration < 60
-                                ? `${stat.totalDuration} min`
-                                : `${Math.floor(stat.totalDuration / 60)}h ${Math.round(stat.totalDuration % 60)}m`
+                                ? `${stat.totalDuration.toFixed(2)} min`
+                                : `${(stat.totalDuration / 60).toFixed(2)}h`
                           }
                         </Text>
                       </View>
@@ -387,11 +484,21 @@ export default function DataScreen() {
           onRequestClose={() => setShowDatePicker(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[
+              styles.modalContent,
+              isDarkMode && { backgroundColor: colors.background }
+            ]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t('select_date')}</Text>
+                <Text style={[
+                  styles.modalTitle,
+                  isDarkMode && { color: colors.text }
+                ]}>{t('select_date')}</Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Ionicons name="close" size={24} color="#333" />
+                  <Ionicons 
+                    name="close" 
+                    size={24} 
+                    color={isDarkMode ? colors.text : '#333'} 
+                  />
                 </TouchableOpacity>
               </View>
               <DateTimePicker
@@ -400,7 +507,10 @@ export default function DataScreen() {
                 mode="date"
               />
               <TouchableOpacity
-                style={styles.modalCloseButton}
+                style={[
+                  styles.modalCloseButton,
+                  isDarkMode && { backgroundColor: colors.primary }
+                ]}
                 onPress={() => setShowDatePicker(false)}
               >
                 <Text style={styles.modalCloseButtonText}>{t('done')}</Text>

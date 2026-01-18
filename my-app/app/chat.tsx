@@ -17,14 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@/contexts/UserContext';
 import { io, Socket } from 'socket.io-client';
 import ThemedBackground from '@/components/ThemedBackground';
-
-// For Android emulator, use 10.0.2.2 instead of localhost
-// For iOS simulator or physical device, use your computer's IP address
-const API_URL = __DEV__
-  ? Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000'  // Android emulator
-    : 'http://localhost:3000'  // iOS simulator
-  : 'http://your-server-ip:3000';  // Production - replace with your server IP
+import { API_URL } from '@/utils/apiConfig';
 
 interface Message {
   _id: string;

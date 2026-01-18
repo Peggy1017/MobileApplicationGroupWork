@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { TodoItem, Tag } from '@/types/todo';
 import TagSelector from '@/components/tag-selector';
 import { useTodos } from '@/contexts/TodoContext';
 import { useUser } from '@/contexts/UserContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCoins } from '@/modules/coins/context/CoinContext';
 import DateTimePicker from '@/components/date-time-picker';
 import ThemedBackground from '@/components/ThemedBackground';
 
@@ -18,6 +20,7 @@ export default function AddTaskScreen() {
   const { isLoggedIn, currentUser } = useUser();
   const { t } = useLanguage();
   const { colors } = useTheme();
+  const { currentThemeData } = useCoins();
   const [taskName, setTaskName] = useState('');
   const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<number>(4); // 默认中等优先级
@@ -43,11 +46,15 @@ export default function AddTaskScreen() {
       return;
     }
 
+    // 标准化选择的日期（只保留日期部分，时间设为 0:0:0:0）
+    const normalizedDate = new Date(selectedDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+
     const newTodo: TodoItem = {
       id: Date.now().toString(), // 临时ID，后端会返回真实ID
       text: taskName.trim(),
       completed: false,
-      createdAt: selectedDate, // 使用选择的日期
+      createdAt: normalizedDate, // 使用标准化的日期
       tag: selectedTag || undefined,
       priority: selectedPriority,
       notes: notes.trim() || undefined,
@@ -61,9 +68,39 @@ export default function AddTaskScreen() {
     }
   };
 
-  return (
-    <ThemedBackground>
-      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+  // 获取 header 背景样式
+  const getHeaderBackground = () => {
+    if (currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient') {
+      return (
+        <LinearGradient
+          colors={currentThemeData.colors as [string, string, ...string[]]}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: '#fff' }]}>{t('add_task')}</Text>
+          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            <Text style={[styles.saveButtonText, { color: '#fff' }]}>{t('save')}</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      );
+    } else if (currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0) {
+      return (
+        <View style={[styles.header, { backgroundColor: currentThemeData.colors[0], borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: '#fff' }]}>{t('add_task')}</Text>
+          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            <Text style={[styles.saveButtonText, { color: '#fff' }]}>{t('save')}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      return (
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -73,6 +110,14 @@ export default function AddTaskScreen() {
             <Text style={[styles.saveButtonText, { color: colors.primary }]}>{t('save')}</Text>
           </TouchableOpacity>
         </View>
+      );
+    }
+  };
+
+  return (
+    <ThemedBackground>
+      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+        {getHeaderBackground()}
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.section}>

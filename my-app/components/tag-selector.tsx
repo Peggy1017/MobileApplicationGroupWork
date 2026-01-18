@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tag } from '@/types/todo';
 import { useTags } from '@/contexts/TagContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface TagSelectorProps {
   selectedTag: Tag | null;
@@ -13,12 +14,17 @@ interface TagSelectorProps {
 export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorProps) {
   const { tags } = useTags();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
 
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.tagButton, selectedTag && { backgroundColor: selectedTag.color + '20', borderColor: selectedTag.color }]}
+        style={[
+          styles.tagButton,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          selectedTag && { backgroundColor: selectedTag.color + '20', borderColor: selectedTag.color }
+        ]}
         onPress={() => setModalVisible(true)}
       >
         {selectedTag ? (
@@ -29,9 +35,9 @@ export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorPro
           </View>
         ) : (
           <View style={styles.unselectedTagContainer}>
-            <Ionicons name="pricetag-outline" size={16} color="#666" />
-            <Text style={styles.placeholderText}>{t('select_tag')}</Text>
-            <Ionicons name="chevron-down" size={16} color="#666" />
+            <Ionicons name="pricetag-outline" size={16} color={colors.text} />
+            <Text style={[styles.placeholderText, { color: colors.text }]}>{t('select_tag')}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.text} />
           </View>
         )}
       </TouchableOpacity>
@@ -41,7 +47,7 @@ export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorPro
           style={styles.clearButton}
           onPress={() => onSelectTag(null)}
         >
-          <Ionicons name="close-circle" size={20} color="#999" />
+          <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       )}
 
@@ -52,24 +58,28 @@ export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorPro
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('select_tag')}</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('select_tag')}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.tagsList}>
               <TouchableOpacity
-                style={[styles.tagOption, !selectedTag && styles.tagOptionSelected]}
+                style={[
+                  styles.tagOption,
+                  { backgroundColor: colors.surface },
+                  !selectedTag && { backgroundColor: colors.primary + '20' }
+                ]}
                 onPress={() => {
                   onSelectTag(null);
                   setModalVisible(false);
                 }}
               >
-                <Text style={styles.tagOptionText}>{t('no_tag')}</Text>
-                {!selectedTag && <Ionicons name="checkmark" size={20} color="#007AFF" />}
+                <Text style={[styles.tagOptionText, { color: colors.text }]}>{t('no_tag')}</Text>
+                {!selectedTag && <Ionicons name="checkmark" size={20} color={colors.primary} />}
               </TouchableOpacity>
 
               {tags.map((tag) => (
@@ -77,7 +87,8 @@ export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorPro
                   key={tag.id}
                   style={[
                     styles.tagOption,
-                    selectedTag?.id === tag.id && styles.tagOptionSelected,
+                    { backgroundColor: colors.surface },
+                    selectedTag?.id === tag.id && { backgroundColor: colors.primary + '20' }
                   ]}
                   onPress={() => {
                     onSelectTag(tag);
@@ -85,8 +96,8 @@ export default function TagSelector({ selectedTag, onSelectTag }: TagSelectorPro
                   }}
                 >
                   <View style={[styles.colorDot, { backgroundColor: tag.color }]} />
-                  <Text style={styles.tagOptionText}>{tag.name}</Text>
-                  {selectedTag?.id === tag.id && <Ionicons name="checkmark" size={20} color="#007AFF" />}
+                  <Text style={[styles.tagOptionText, { color: colors.text }]}>{tag.name}</Text>
+                  {selectedTag?.id === tag.id && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -111,8 +122,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#f5f5f5',
+    // backgroundColor and borderColor will be set dynamically
   },
   selectedTagContainer: {
     flexDirection: 'row',
@@ -138,8 +148,8 @@ const styles = StyleSheet.create({
   placeholderText: {
     flex: 1,
     fontSize: 14,
-    color: '#666',
     marginLeft: 8,
+    // color will be set dynamically
   },
   clearButton: {
     marginLeft: 8,
@@ -151,11 +161,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
     paddingBottom: 20,
+    // backgroundColor will be set dynamically
   },
   modalHeader: {
     flexDirection: 'row',
@@ -163,12 +173,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    // borderBottomColor will be set dynamically
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
   },
   tagsList: {
     maxHeight: 300,
@@ -180,16 +190,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#f5f5f5',
+    // backgroundColor will be set dynamically
   },
   tagOptionSelected: {
-    backgroundColor: '#E3F2FD',
+    // backgroundColor will be set dynamically
   },
   tagOptionText: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
     marginLeft: 12,
+    // color will be set dynamically
   },
 });
 

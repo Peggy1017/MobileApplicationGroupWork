@@ -19,6 +19,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { BackgroundTheme } from '../types/theme';
+import ThemedBackground from '@/components/ThemedBackground';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -34,6 +35,7 @@ export default function ShopScreen() {
         loginStreak,
         availableThemes,
         currentTheme,
+        currentThemeData,
         ownedThemes,
         buyTheme,
         applyTheme,
@@ -207,37 +209,62 @@ export default function ShopScreen() {
 
     if (!isLoggedIn) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-                <View style={styles.notLoggedIn}>
-                    <Ionicons name="lock-closed-outline" size={60} color={colors.textSecondary} />
-                    <Text style={[styles.notLoggedInText, { color: colors.text }]}>
-                        {language === 'zh' ? '请先登录' : 'Please login first'}
-                    </Text>
-                    <TouchableOpacity
-                        style={[styles.loginBtn, { backgroundColor: colors.primary }]}
-                        onPress={() => router.push('/(tabs)/profile')}
-                    >
-                        <Text style={styles.loginBtnText}>
-                            {language === 'zh' ? '去登录' : 'Login'}
+            <ThemedBackground>
+                <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
+                    <View style={styles.notLoggedIn}>
+                        <Ionicons name="lock-closed-outline" size={60} color={colors.textSecondary} />
+                        <Text style={[styles.notLoggedInText, { color: colors.text }]}>
+                            {language === 'zh' ? '请先登录' : 'Please login first'}
                         </Text>
-                    </TouchableOpacity>
-                </View>
-            </SafeAreaView>
+                        <TouchableOpacity
+                            style={[styles.loginBtn, { backgroundColor: colors.primary }]}
+                            onPress={() => router.push('/(tabs)/profile')}
+                        >
+                            <Text style={styles.loginBtnText}>
+                                {language === 'zh' ? '去登录' : 'Login'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </SafeAreaView>
+            </ThemedBackground>
         );
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <ThemedBackground>
+            <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
             {/* 头部 */}
-            <View style={[styles.header, { backgroundColor: colors.surface }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
-                    {language === 'zh' ? '主题商店' : 'Theme Shop'}
-                </Text>
-                <View style={styles.placeholder} />
-            </View>
+            {currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient' ? (
+                <LinearGradient
+                    colors={currentThemeData.colors as [string, string, ...string[]]}
+                    style={styles.header}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                >
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>
+                        {language === 'zh' ? '主题商店' : 'Theme Shop'}
+                    </Text>
+                    <View style={styles.placeholder} />
+                </LinearGradient>
+            ) : (
+                <View style={[
+                    styles.header,
+                    currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0
+                        ? { backgroundColor: currentThemeData.colors[0] }
+                        : { backgroundColor: colors.surface }
+                ]}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>
+                        {language === 'zh' ? '主题商店' : 'Theme Shop'}
+                    </Text>
+                    <View style={styles.placeholder} />
+                </View>
+            )}
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {/* 余额卡片 */}
@@ -404,9 +431,10 @@ export default function ShopScreen() {
                 >
                     <Ionicons name="logo-bitcoin" size={40} color="#FFD700" />
                     <Text style={styles.coinAnimText}>+</Text>
-                </Animated.View>
-            )}
-        </SafeAreaView>
+                    </Animated.View>
+                )}
+            </SafeAreaView>
+        </ThemedBackground>
     );
 }
 

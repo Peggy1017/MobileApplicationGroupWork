@@ -76,7 +76,9 @@ app.use((req, res, next) => {
 });
 
 // 5. 让我们的服务器可以解析 JSON 格式的请求体（比如POST请求发来的数据）
-app.use(express.json());
+// 增加请求体大小限制以支持图片上传（10MB）
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // 6. 定义 User 模型（用户数据格式）
 const userSchema = new mongoose.Schema({
   username: {
@@ -128,6 +130,18 @@ const userSchema = new mongoose.Schema({
   loginStreak: {
     type: Number,
     default: 0
+  },
+  primaryColor: {
+    type: String,
+    default: '#007AFF' // 默认主色调
+  },
+  avatar: {
+    type: String,
+    default: null // 用户头像 URL 或 base64
+  },
+  motto: {
+    type: String,
+    default: null // 用户座右铭
   }
 });
 
@@ -259,7 +273,11 @@ app.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    res.json({ message: 'Login successful', username: user.username });
+    res.json({ 
+      message: 'Login successful', 
+      username: user.username,
+      primaryColor: user.primaryColor || '#007AFF'
+    });
   } catch (err) {
     res.status(500).json({ error: 'Login failed: ' + err.message });
   }
@@ -272,6 +290,125 @@ app.get('/users', async (req, res) => {
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch users: ' + err.message });
+  }
+});
+
+// 端点：GET /users/:username/settings - 获取用户设置（包括主色调）
+app.get('/users/:username/settings', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username }).select('primaryColor');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ primaryColor: user.primaryColor || '#007AFF' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch user settings: ' + err.message });
+  }
+});
+
+// 端点：PUT /users/:username/settings - 更新用户设置（包括主色调）
+app.put('/users/:username/settings', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { primaryColor } = req.body;
+    
+    if (!primaryColor) {
+      return res.status(400).json({ error: 'primaryColor is required' });
+    }
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.primaryColor = primaryColor;
+    await user.save();
+    
+    res.json({ message: 'Settings updated successfully', primaryColor: user.primaryColor });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update user settings: ' + err.message });
+  }
+});
+
+// 端点：PUT /users/:username - 更新用户信息（用户名、密码、头像、座右铭）
+app.put('/users/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { newUsername, password, avatar, motto } = req.body;
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // 更新用户名（如果提供且不同）
+    if (newUsername && newUsername !== username) {
+      // 检查新用户名是否已存在
+      const existingUser = await User.findOne({ username: newUsername });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+      user.username = newUsername;
+    }
+    
+    // 更新密码（如果提供）
+    if (password) {
+      user.password = password; // 注意：实际应用中应该使用 bcrypt 哈希
+    }
+    
+    // 更新头像（如果提供）
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+    }
+    
+    // 更新座右铭（如果提供）
+    if (motto !== undefined) {
+      // 和用户名类似：空字符串或只有空格时设为 null，否则保留原始值（包括空格）
+      user.motto = (motto && motto.trim()) ? motto : null;
+      console.log('Updating motto:', { received: motto, saved: user.motto });
+    }
+    
+    await user.save();
+    
+    // 重新查询用户以确保获取最新数据
+    const updatedUser = await User.findOne({ username: user.username }).select('username avatar motto');
+    
+    // 确保 motto 字段始终返回（即使是 null）
+    const responseData = { 
+      message: 'User updated successfully', 
+      username: updatedUser.username,
+      avatar: updatedUser.avatar || null,
+      motto: updatedUser.motto || null  // 确保始终返回 motto，即使是 null
+    };
+    
+    console.log('User update response:', responseData);
+    res.json(responseData);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update user: ' + err.message });
+  }
+});
+
+// 端点：GET /users/:username - 获取用户信息
+app.get('/users/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username }).select('username email avatar primaryColor motto');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    // 确保 motto 字段始终返回（即使是 null）
+    const responseData = {
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar || null,
+      primaryColor: user.primaryColor || '#007AFF',
+      motto: user.motto || null  // 确保始终返回 motto，即使是 null
+    };
+    console.log('GET user response:', responseData);
+    res.json(responseData);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch user: ' + err.message });
   }
 });
 
@@ -335,6 +472,22 @@ app.get('/api/todos', async (req, res) => {
       return res.status(400).json({ error: 'userId is required' });
     }
     const todos = await Todo.find({ userId }).sort({ createdAt: -1 });
+    
+    // 调试日志：显示返回的任务日期
+    console.log('=== GET /api/todos - Fetching tasks ===');
+    console.log('Total tasks found:', todos.length);
+    todos.forEach((todo, index) => {
+      console.log(`Task ${index + 1}:`, {
+        text: todo.text,
+        createdAt: todo.createdAt,
+        createdAtISO: todo.createdAt.toISOString(),
+        createdAtUTCYear: todo.createdAt.getUTCFullYear(),
+        createdAtUTCMonth: todo.createdAt.getUTCMonth() + 1,
+        createdAtUTCDay: todo.createdAt.getUTCDate(),
+      });
+    });
+    console.log('=== End GET /api/todos ===\n');
+    
     res.json(todos);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch todos: ' + err.message });
@@ -344,10 +497,41 @@ app.get('/api/todos', async (req, res) => {
 // POST /api/todos - 创建新任务
 app.post('/api/todos', async (req, res) => {
   try {
-    const { userId, text, tag, duration, priority, notes } = req.body;
+    const { userId, text, tag, duration, priority, notes, createdAt } = req.body;
     if (!userId || !text) {
       return res.status(400).json({ error: 'userId and text are required' });
     }
+    
+    // 处理日期：如果提供了 createdAt（格式为 YYYY-MM-DD），则使用它
+    // 否则使用当前日期（时间设为 00:00:00）
+    let taskCreatedAt;
+    if (createdAt) {
+      // 如果格式为 YYYY-MM-DD，解析为日期并设置时间为 00:00:00（UTC）
+      const dateParts = createdAt.split('-');
+      if (dateParts.length === 3) {
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1; // 月份从 0 开始
+        const day = parseInt(dateParts[2], 10);
+        // 使用 UTC 时间创建日期，避免时区问题
+        taskCreatedAt = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      } else {
+        // 如果不是 YYYY-MM-DD 格式，尝试直接解析
+        taskCreatedAt = new Date(createdAt);
+      }
+    } else {
+      // 如果没有提供，使用当前日期（时间设为 00:00:00 UTC）
+      const now = new Date();
+      taskCreatedAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    }
+    
+    console.log('=== POST /api/todos - Creating new task ===');
+    console.log('Received createdAt (string):', createdAt);
+    console.log('Parsed taskCreatedAt (Date object):', taskCreatedAt);
+    console.log('taskCreatedAt ISO:', taskCreatedAt.toISOString());
+    console.log('taskCreatedAt UTC Year:', taskCreatedAt.getUTCFullYear());
+    console.log('taskCreatedAt UTC Month:', taskCreatedAt.getUTCMonth() + 1);
+    console.log('taskCreatedAt UTC Day:', taskCreatedAt.getUTCDate());
+    
     const newTodo = new Todo({
       userId,
       text,
@@ -356,11 +540,20 @@ app.post('/api/todos', async (req, res) => {
       priority,
       notes,
       completed: false,
-      createdAt: new Date()
+      createdAt: taskCreatedAt
     });
     const savedTodo = await newTodo.save();
+    
+    console.log('Saved createdAt (from DB):', savedTodo.createdAt);
+    console.log('Saved createdAt ISO:', savedTodo.createdAt.toISOString());
+    console.log('Saved createdAt UTC Year:', savedTodo.createdAt.getUTCFullYear());
+    console.log('Saved createdAt UTC Month:', savedTodo.createdAt.getUTCMonth() + 1);
+    console.log('Saved createdAt UTC Day:', savedTodo.createdAt.getUTCDate());
+    console.log('=== End POST /api/todos ===\n');
+    
     res.status(201).json(savedTodo);
   } catch (err) {
+    console.error('POST /api/todos - Error:', err);
     res.status(400).json({ error: 'Failed to create todo: ' + err.message });
   }
 });
@@ -389,19 +582,31 @@ app.put('/api/todos/:id', async (req, res) => {
 
     const updateData = {};
     if (text !== undefined) updateData.text = text;
-    if (completed !== undefined) {
-      updateData.completed = completed;
-      if (completed) {
-        updateData.completedAt = completedAt ? new Date(completedAt) : new Date();
-      } else {
-        updateData.completedAt = null;
-      }
-    }
-    if (startedAt !== undefined) {
-      updateData.startedAt = startedAt ? new Date(startedAt) : null;
-    }
+    
+    // 优先处理 completedAt：如果明确提供了 completedAt，使用它
     if (completedAt !== undefined && completedAt !== null) {
       updateData.completedAt = new Date(completedAt);
+      // 如果有 completedAt，确保任务标记为已完成
+      if (completed === undefined) {
+        updateData.completed = true;
+      }
+    }
+    
+    // 处理 completed 状态
+    if (completed !== undefined) {
+      updateData.completed = completed;
+      // 如果 completedAt 没有被设置，根据 completed 状态设置
+      if (updateData.completedAt === undefined) {
+        if (completed) {
+          updateData.completedAt = completedAt ? new Date(completedAt) : new Date();
+        } else {
+          updateData.completedAt = null;
+        }
+      }
+    }
+    
+    if (startedAt !== undefined) {
+      updateData.startedAt = startedAt ? new Date(startedAt) : null;
     }
     if (duration !== undefined) updateData.duration = duration;
     if (tag !== undefined) updateData.tag = tag;
@@ -858,8 +1063,10 @@ io.on('connection', (socket) => {
 });
 
 // 9. 启动服务器，监听端口
-server.listen(port, () => {
+// 监听所有网络接口（0.0.0.0），允许从局域网访问
+server.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is accessible from network at http://<your-ip>:${port}`);
   console.log('Socket.IO is ready for real-time chat!');
 });
 

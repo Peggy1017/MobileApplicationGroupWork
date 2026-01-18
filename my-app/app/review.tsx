@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTodos } from '@/contexts/TodoContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCoins } from '@/modules/coins/context/CoinContext';
 import { TodoItem } from '@/types/todo';
 import ThemedBackground from '@/components/ThemedBackground';
 
@@ -13,8 +15,12 @@ export default function ReviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { todos } = useTodos();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const { t } = useLanguage();
+  const { currentThemeData } = useCoins();
+  
+  // 检查是否是 Classic Dark 主题
+  const isClassicDark = currentThemeData?.id === 'default_dark' || isDarkMode;
 
   // Get the date from params, default to today
   const reviewDate = useMemo(() => {
@@ -91,17 +97,41 @@ export default function ReviewScreen() {
   return (
     <ThemedBackground>
       <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {reviewDate.toDateString() === new Date().toDateString()
-              ? t('today_review')
-              : `${reviewDate.getMonth() + 1}/${reviewDate.getDate()} ${t('today_review')}`}
-          </Text>
-          <View style={styles.placeholder} />
-        </View>
+        {currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'gradient' ? (
+          <LinearGradient
+            colors={currentThemeData.colors as [string, string, ...string[]]}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {reviewDate.toDateString() === new Date().toDateString()
+                ? t('today_review')
+                : `${reviewDate.getMonth() + 1}/${reviewDate.getDate()} ${t('today_review')}`}
+            </Text>
+            <View style={styles.placeholder} />
+          </LinearGradient>
+        ) : (
+          <View style={[
+            styles.header,
+            currentThemeData && !currentThemeData.isDefault && currentThemeData.type === 'solid' && currentThemeData.colors.length > 0
+              ? { backgroundColor: currentThemeData.colors[0] }
+              : { backgroundColor: colors.surface }
+          ]}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {reviewDate.toDateString() === new Date().toDateString()
+                ? t('today_review')
+                : `${reviewDate.getMonth() + 1}/${reviewDate.getDate()} ${t('today_review')}`}
+            </Text>
+            <View style={styles.placeholder} />
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {todayCompletedTasks.length === 0 ? (
@@ -115,31 +145,37 @@ export default function ReviewScreen() {
               {sortedHours.map((hour, index) => (
                 <View key={hour} style={styles.timelineItem}>
                   <View style={styles.timelineLeft}>
-                    <View style={styles.timelineDot} />
+                    <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
                     {index < sortedHours.length - 1 && <View style={styles.timelineLine} />}
                   </View>
                   <View style={styles.timelineRight}>
-                    <Text style={styles.timeLabel}>{hour}</Text>
+                    <Text style={[styles.timeLabel, isClassicDark && { color: '#fff' }, !isClassicDark && { color: '#666' }]}>
+                      {hour}
+                    </Text>
                     {taskGroups[hour].map((task) => (
                       <View
                         key={task.id}
                         style={[
                           styles.taskCard,
+                          isClassicDark && { backgroundColor: colors.background },
+                          !isClassicDark && { backgroundColor: '#fff' },
                           task.tag && { borderLeftColor: task.tag.color, borderLeftWidth: 4 },
                         ]}
                       >
                         <View style={styles.taskHeader}>
                           <View style={styles.taskNameContainer}>
-                            <Text style={styles.taskName}>{task.text}</Text>
+                            <Text style={[styles.taskName, isClassicDark && { color: '#fff' }, !isClassicDark && { color: '#333' }]}>
+                              {task.text}
+                            </Text>
                             {task.startedAt && (
-                              <Text style={styles.taskStartTime}>
+                              <Text style={[styles.taskStartTime, { color: colors.primary }]}>
                                 {formatTime(new Date(task.startedAt))}
                               </Text>
                             )}
                           </View>
                         </View>
                         {task.completedAt && (
-                          <Text style={styles.taskEndTime}>
+                          <Text style={[styles.taskEndTime, isClassicDark && { color: '#fff' }, !isClassicDark && { color: '#666' }]}>
                             {t('end')}: {formatTime(new Date(task.completedAt))}
                           </Text>
                         )}
@@ -153,14 +189,16 @@ export default function ReviewScreen() {
                         )}
                         {task.duration !== undefined && (
                           <View style={styles.taskMeta}>
-                            <Ionicons name="time-outline" size={14} color="#666" />
-                            <Text style={styles.taskMetaText}>
+                            <Ionicons name="time-outline" size={14} color={isClassicDark ? '#fff' : '#666'} />
+                            <Text style={[styles.taskMetaText, isClassicDark && { color: '#fff' }, !isClassicDark && { color: '#666' }]}>
                               {task.duration < 1 ? `${Math.round(task.duration * 60)}s` : `${task.duration} min`}
                             </Text>
                           </View>
                         )}
                         {task.notes && (
-                          <Text style={styles.taskNotes}>{task.notes}</Text>
+                          <Text style={[styles.taskNotes, isClassicDark && { color: '#fff' }, !isClassicDark && { color: '#666' }]}>
+                            {task.notes}
+                          </Text>
                         )}
                       </View>
                     ))}
@@ -233,7 +271,6 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -281,7 +318,6 @@ const styles = StyleSheet.create({
   },
   taskStartTime: {
     fontSize: 12,
-    color: '#007AFF',
     marginLeft: 8,
     fontWeight: '500',
   },

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface DateTimePickerProps {
   value: Date;
@@ -10,7 +11,16 @@ interface DateTimePickerProps {
 const { width } = Dimensions.get('window');
 
 export default function DateTimePicker({ value, onChange, mode = 'datetime' }: DateTimePickerProps) {
+  const { colors, isDarkMode } = useTheme();
   const [selectedDate, setSelectedDate] = useState(value);
+
+  // 将 hex 颜色转换为带透明度的 rgba
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
 
   const generateYears = () => {
     const currentYear = new Date().getFullYear();
@@ -139,8 +149,12 @@ export default function DateTimePicker({ value, onChange, mode = 'datetime' }: D
               >
                 <Text style={[
                   isYear
-                    ? (isSelected ? styles.pickerItemTextYearSelected : styles.pickerItemTextYear)
-                    : (isSelected ? styles.pickerItemTextSelected : styles.pickerItemText)
+                    ? (isSelected 
+                        ? [styles.pickerItemTextYearSelected, isDarkMode && { color: colors.primary }]
+                        : [styles.pickerItemTextYear, isDarkMode && { color: colors.text }])
+                    : (isSelected 
+                        ? [styles.pickerItemTextSelected, isDarkMode && { color: colors.primary }]
+                        : [styles.pickerItemText, isDarkMode && { color: colors.text }])
                 ]}>
                   {formatter ? formatter(item) : item.toString().padStart(2, '0')}
                 </Text>
@@ -148,14 +162,20 @@ export default function DateTimePicker({ value, onChange, mode = 'datetime' }: D
             );
           })}
         </ScrollView>
-        <View style={styles.pickerIndicator} />
+        <View style={[
+          styles.pickerIndicator,
+          isDarkMode && {
+            borderColor: colors.primary,
+            backgroundColor: hexToRgba(colors.primary, 0.1)
+          }
+        ]} />
       </View>
     );
   };
 
   if (mode === 'date') {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, isDarkMode && { backgroundColor: colors.background }]}>
         <PickerColumn
           items={years}
           selectedValue={selectedDate.getFullYear()}
@@ -181,13 +201,13 @@ export default function DateTimePicker({ value, onChange, mode = 'datetime' }: D
 
   if (mode === 'time') {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, isDarkMode && { backgroundColor: colors.background }]}>
         <PickerColumn
           items={hours}
           selectedValue={selectedDate.getHours()}
           onValueChange={(value: number) => handleDateChange('hour', value)}
         />
-        <Text style={styles.separator}>:</Text>
+        <Text style={[styles.separator, isDarkMode && { color: colors.text }]}>:</Text>
         <PickerColumn
           items={minutes}
           selectedValue={selectedDate.getMinutes()}
@@ -199,7 +219,7 @@ export default function DateTimePicker({ value, onChange, mode = 'datetime' }: D
 
   // datetime mode
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: colors.background }]}>
       <View style={styles.dateSection}>
         <PickerColumn
           items={years}
@@ -227,7 +247,7 @@ export default function DateTimePicker({ value, onChange, mode = 'datetime' }: D
           selectedValue={selectedDate.getHours()}
           onValueChange={(value: number) => handleDateChange('hour', value)}
         />
-        <Text style={styles.separator}>:</Text>
+        <Text style={[styles.separator, isDarkMode && { color: colors.text }]}>:</Text>
         <PickerColumn
           items={minutes}
           selectedValue={selectedDate.getMinutes()}

@@ -63,6 +63,7 @@ export default function RootLayout() {
                       <Stack.Screen name="add-task" options={{ headerShown: false }} />
                       <Stack.Screen name="review" options={{ headerShown: false }} />
                       <Stack.Screen name="shop" options={{ headerShown: false }} />
+                      <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
                       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
                     </Stack>
                     <StatusBar style="auto" />
