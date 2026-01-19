@@ -4,12 +4,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from './UserContext';
 import { useLanguage } from './LanguageContext';
 
+// Check if running in Expo Go (where push notifications are not available)
+// Local notifications still work in Expo Go
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
 // Configure notification behavior
+// Note: This warning about push notifications in Expo Go is expected and can be ignored.
+// Local notifications (which this app uses) still work in Expo Go.
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,

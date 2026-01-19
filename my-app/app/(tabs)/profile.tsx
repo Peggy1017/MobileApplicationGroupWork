@@ -11,8 +11,8 @@ import {
   Platform,
   Switch,
   Modal,
-  ImageBackground,
   Image,
+  ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -165,10 +165,16 @@ export default function ProfileScreen() {
       }
     } catch (error: any) {
       console.error('Login error:', error);
+      console.error('API_URL:', API_URL);
       if (error.message && error.message.includes('JSON')) {
         Alert.alert('Error', 'Cannot connect to server. Please check if the backend is running on ' + API_URL);
+      } else if (error.message && error.message.includes('Network request failed')) {
+        Alert.alert(
+          'Network Error', 
+          `Cannot connect to server at ${API_URL}.\n\nPlease check:\n1. Backend server is running\n2. Device and computer are on the same network\n3. Firewall allows connections on port 3000`
+        );
       } else {
-        Alert.alert('Error', 'Network error. Please try again.');
+        Alert.alert('Error', `Network error: ${error.message || 'Unknown error'}`);
       }
     } finally {
       setLoading(false);
@@ -702,7 +708,7 @@ export default function ProfileScreen() {
   if (!isLoggedIn) {
     return (
       <ImageBackground
-        source={require('@/assets/images/login-background.png')}
+        source={require('@/assets/images/login_background.jpg')}
         style={styles.backgroundImage}
         resizeMode="cover"
       >
@@ -805,10 +811,10 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </ImageBackground>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
     );
   }
 

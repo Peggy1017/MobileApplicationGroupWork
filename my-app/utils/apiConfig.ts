@@ -21,19 +21,12 @@ export function getApiUrl(): string {
     return 'http://your-server-ip:3000'; // 生产环境
   }
 
-  // 如果手动设置了 IP，优先使用
-  if (MANUAL_IP) {
-    return `http://${MANUAL_IP}:3000`;
-  }
-
-  // 检测是否是真实设备
   const isRealDevice = Device.isDevice;
   const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.hostUri;
   
-  // 如果是真实设备（包括 tunnel 模式）
-  if (isRealDevice && hostUri) {
-    // 尝试从 hostUri 提取 IP 地址
-    // hostUri 可能是 "192.168.1.100:8081" 或 "pzpq55k-peggy1017-8081.exp.direct"
+  // 优先从 hostUri 提取 IP 地址（适用于真实设备、虚拟机环境等）
+  // 这样可以处理虚拟机、NAT 网络等复杂网络环境
+  if (hostUri) {
     const parts = hostUri.split(':');
     const host = parts[0];
     
@@ -47,24 +40,48 @@ export function getApiUrl(): string {
       });
       
       if (isValidIP) {
+        console.log('✅ 从 Host URI 自动检测到 IP 地址:', host);
+        console.log('   这适用于虚拟机、真实设备等环境');
         return `http://${host}:3000`;
       }
     }
     
-    // 如果是 tunnel 模式（exp.direct），需要手动设置 IP
-    // 因为 tunnel 域名无法直接访问本地服务器
+    // 如果是 tunnel 模式（exp.direct），使用手动设置的 IP
     if (hostUri.includes('exp.direct')) {
-      console.warn('⚠️ 检测到 Expo tunnel 模式。请在 utils/apiConfig.ts 中设置 MANUAL_IP 为您的电脑 IP 地址');
-      // 返回一个提示性的 URL，实际使用时需要设置 MANUAL_IP
+      console.warn('⚠️ 检测到 Expo tunnel 模式。使用手动设置的 IP 地址');
+      if (MANUAL_IP) {
+        return `http://${MANUAL_IP}:3000`;
+      }
+      console.warn('⚠️ 请在 utils/apiConfig.ts 中设置 MANUAL_IP 为您的电脑 IP 地址');
     }
   }
 
-  // 模拟器情况
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000'; // Android 模拟器
-  } else {
-    return 'http://localhost:3000'; // iOS 模拟器或 Web
+  // 如果手动设置了 IP，使用手动设置的 IP（作为后备）
+  if (MANUAL_IP) {
+    console.log('✅ 使用手动设置的 IP 地址:', MANUAL_IP);
+    return `http://${MANUAL_IP}:3000`;
   }
+
+  // 模拟器情况（当没有 hostUri 时使用）
+  if (Platform.OS === 'android' && !isRealDevice) {
+    console.log('✅ 检测到 Android 模拟器（标准环境），使用 10.0.2.2:3000');
+    return 'http://10.0.2.2:3000';
+  }
+  
+  if (Platform.OS === 'ios' && !isRealDevice) {
+    console.log('✅ 检测到 iOS 模拟器，使用 localhost:3000');
+    return 'http://localhost:3000';
+  }
+  
+  // Web 平台
+  if (Platform.OS === 'web') {
+    console.log('✅ Web 平台，使用 localhost:3000');
+    return 'http://localhost:3000';
+  }
+
+  // 默认情况
+  console.warn('⚠️ 无法自动检测 IP，使用默认值 localhost:3000');
+  return 'http://localhost:3000';
 }
 
 // 导出常量以便直接使用
