@@ -1,159 +1,349 @@
 # Time Management Application
 
-一个基于 React Native (Expo) 和 Node.js 的时间管理应用，帮助用户追踪任务、管理时间并可视化时间分配。
+A comprehensive time management mobile application built with React Native (Expo) and Node.js, designed to help users track tasks, manage time, and visualize time allocation effectively.
 
-## 📁 项目结构
+## 📱 Project Description
 
-```
-finalProject/
-├── backend/              # 后端服务器 (Express + MongoDB)
-│   ├── index.js         # 服务器入口文件
-│   ├── init-users.js    # 用户初始化脚本
-│   └── package.json     # 后端依赖配置
-│
-├── my-app/              # 前端移动应用 (React Native + Expo)
-│   ├── app/             # 应用页面 (Expo Router)
-│   │   ├── (tabs)/      # 标签页导航
-│   │   │   ├── index.tsx    # 今日任务页面
-│   │   │   ├── data.tsx     # 数据统计页面
-│   │   │   └── profile.tsx   # 个人设置页面
-│   │   ├── timer.tsx    # 计时器页面
-│   │   ├── review.tsx   # 任务回顾页面
-│   │   └── add-task.tsx # 添加任务页面
-│   │
-│   ├── components/      # 可复用组件
-│   │   ├── time-blocks-visualization.tsx  # 时间块可视化
-│   │   ├── calendar-horizontal.tsx        # 横向日历
-│   │   ├── date-time-picker.tsx           # 日期时间选择器
-│   │   └── ...
-│   │
-│   ├── contexts/        # React Context 状态管理
-│   │   ├── TodoContext.tsx    # 任务状态管理
-│   │   ├── UserContext.tsx    # 用户状态管理
-│   │   ├── ThemeContext.tsx   # 主题管理
-│   │   ├── LanguageContext.tsx # 语言管理
-│   │   └── TagContext.tsx      # 标签管理
-│   │
-│   ├── types/           # TypeScript 类型定义
-│   ├── hooks/           # 自定义 React Hooks
-│   ├── constants/       # 常量配置
-│   └── assets/          # 静态资源
-│
-└── README.md            # 项目说明文档
-```
+This application provides a complete solution for personal time management with features including:
 
-## 🚀 快速开始
+- **Task Management**: Create, edit, complete, and delete tasks with due dates and priorities
+- **Time Tracking**: Built-in timer to track time spent on tasks
+- **Data Visualization**: Interactive charts and statistics showing daily/weekly/monthly time allocation
+- **Tag System**: Organize tasks with custom tags and colors
+- **Theme Customization**: Multiple themes including gradient and solid color options
+- **Multi-language Support**: English and Chinese (Simplified) language support
+- **User Profile**: Customizable profile with avatar, username, and personal motto
+- **Coin Rewards**: Gamification system with coins earned through task completion
+- **Notifications**: Local notifications for task reminders and daily check-ins
+- **Calendar View**: Browse tasks across different dates
 
-### 前置要求
+## 🛠️ Tech Stack
 
-- Node.js (v18 或更高版本)
-- npm 或 yarn
-- MongoDB (本地或远程)
-- Expo CLI (用于移动应用开发)
+### Frontend
 
-### 安装步骤
+- **Framework**: React Native 0.81.5
+- **Development Platform**: Expo SDK 54
+- **Language**: TypeScript 5.9.2
+- **Navigation**: Expo Router 6.0.15
+- **State Management**: React Context API
+- **UI Components**:
+  - React Native Chart Kit (for data visualization)
+  - Expo Linear Gradient (for theme gradients)
+  - React Native SVG (for charts and icons)
+  - Expo Image Picker (for avatar selection)
+- **Styling**: StyleSheet API with dynamic theming
+- **Storage**: AsyncStorage for local data persistence
+- **Notifications**: Expo Notifications
+- **Real-time**: Socket.io Client
 
-#### 1. 克隆项目
+### Backend
+
+- **Runtime**: Node.js
+- **Framework**: Express.js 5.1.0
+- **Database**: MongoDB with Mongoose 9.0.0
+- **Real-time**: Socket.io 4.8.1
+- **Environment**: dotenv for configuration
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **MongoDB** (local installation or MongoDB Atlas account)
+- **Expo CLI** (optional, for development)
+- **Expo Go** app on your mobile device (for testing)
+
+## 🚀 Installation & Running Instructions
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Peggy1017/MobileApplicationGroupWork.git
 cd MobileApplicationGroupWork
 ```
 
-#### 2. 安装后端依赖
+### 2. Backend Setup
+
+#### Install Dependencies
 
 ```bash
 cd backend
 npm install
 ```
 
-#### 3. 配置后端环境变量
+#### Configure Environment Variables
 
-在 `backend/` 目录下创建 `.env` 文件：
+Create a `.env` file in the `backend/` directory:
 
 ```env
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=mongodb://localhost:27017/timemanagement
+# Or use MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/timemanagement
+
 PORT=3000
 ```
 
-#### 4. 启动后端服务器
+#### Start the Backend Server
 
 ```bash
-cd backend
+npm start
+# or
 node index.js
 ```
 
-后端服务器将在 `http://localhost:3000` 启动。
+The backend server will start on `http://localhost:3000`.
 
-#### 5. 安装前端依赖
+**Note**: Ensure MongoDB is running before starting the backend server.
+
+### 3. Frontend Setup
+
+#### Install Dependencies
 
 ```bash
 cd my-app
 npm install
 ```
 
-#### 6. 启动前端应用
+#### Configure API URL (Optional)
+
+If your backend is running on a different IP address, update `my-app/utils/apiConfig.ts`:
+
+```typescript
+const MANUAL_IP = '192.168.0.102'; // Your computer's IP address
+```
+
+The app automatically detects the correct API URL based on:
+- Android Emulator: `http://10.0.2.2:3000`
+- iOS Simulator: `http://localhost:3000`
+- Real Device: Extracts IP from Host URI or uses MANUAL_IP
+- Web: `http://localhost:3000` or MANUAL_IP
+
+#### Start the Frontend Application
 
 ```bash
-cd my-app
+npm start
+# or
 npx expo start
 ```
 
-使用 Expo Go 应用扫描二维码，或在模拟器中运行。
+#### Running Options
 
-## ✨ 主要功能
+- **Expo Go**: Scan the QR code with Expo Go app (Android/iOS)
+- **Android Emulator**: Press `a` in the terminal
+- **iOS Simulator**: Press `i` in the terminal (macOS only)
+- **Web Browser**: Press `w` in the terminal
 
-- ✅ **任务管理**: 创建、编辑、完成和删除任务
-- ⏱️ **计时器**: 追踪任务执行时间
-- 📊 **数据可视化**: 时间块图表和统计信息
-- 🏷️ **标签系统**: 使用标签分类任务
-- 🌓 **主题切换**: 支持深色/浅色模式
-- 🌐 **多语言**: 支持中英文切换
-- 📅 **日历视图**: 查看不同日期的任务
-- 📈 **时间分析**: 查看每日/每周/每月的时间分配
+### 4. Building for Production
 
-## 🛠️ 技术栈
+#### Android APK
 
-### 前端
-- React Native
-- Expo
-- TypeScript
-- React Context API
-- React Native Chart Kit
-- Expo Router
+```bash
+cd my-app
+npx expo run:android --variant release
+```
 
-### 后端
-- Node.js
-- Express
-- MongoDB
-- Mongoose
-- Socket.io
+The APK will be generated at:
+```
+android/app/build/outputs/apk/release/app-release.apk
+```
 
-## 📝 开发
+#### iOS Build
 
-### 项目结构说明
+```bash
+cd my-app
+npx expo run:ios --configuration Release
+```
 
-- `backend/`: 后端 API 服务器，处理数据持久化和业务逻辑
-- `my-app/`: 前端移动应用，使用 Expo 框架
-- `my-app/app/`: 使用 Expo Router 的文件路由系统
-- `my-app/components/`: 可复用的 UI 组件
-- `my-app/contexts/`: 全局状态管理
+## 📁 Project Structure
 
-### 代码规范
+```
+finalProject/
+├── backend/                    # Backend server
+│   ├── index.js               # Express server entry point
+│   ├── init-users.js          # User initialization script
+│   ├── package.json           # Backend dependencies
+│   └── .env                   # Environment variables (not in repo)
+│
+├── my-app/                     # Frontend mobile application
+│   ├── app/                   # Expo Router pages
+│   │   ├── (tabs)/            # Tab navigation screens
+│   │   │   ├── index.tsx      # Today's tasks screen
+│   │   │   ├── data.tsx       # Data visualization screen
+│   │   │   └── profile.tsx    # Profile & settings screen
+│   │   ├── add-task.tsx       # Add task screen
+│   │   ├── edit-profile.tsx   # Edit profile screen
+│   │   ├── timer.tsx          # Timer screen
+│   │   └── review.tsx         # Task review screen
+│   │
+│   ├── components/            # Reusable components
+│   │   ├── time-blocks-visualization.tsx
+│   │   ├── calendar-horizontal.tsx
+│   │   ├── date-time-picker.tsx
+│   │   └── ThemedBackground.tsx
+│   │
+│   ├── contexts/              # React Context providers
+│   │   ├── TodoContext.tsx    # Task state management
+│   │   ├── UserContext.tsx   # User authentication
+│   │   ├── ThemeContext.tsx  # Theme management
+│   │   ├── LanguageContext.tsx # i18n support
+│   │   ├── TagContext.tsx    # Tag management
+│   │   ├── CoinContext.tsx   # Coin rewards system
+│   │   └── NotificationContext.tsx # Notifications
+│   │
+│   ├── modules/               # Feature modules
+│   │   └── coins/            # Coin rewards module
+│   │
+│   ├── utils/                 # Utility functions
+│   │   └── apiConfig.ts      # API URL configuration
+│   │
+│   ├── types/                 # TypeScript type definitions
+│   ├── assets/                # Images and static assets
+│   └── package.json           # Frontend dependencies
+│
+└── README.md                   # This file
+```
 
-- 使用 TypeScript 进行类型检查
-- 遵循 ESLint 代码规范
-- 组件使用函数式组件和 Hooks
+## 📸 Screenshots
 
-## 📄 许可证
+### Main Screens
+
+#### Today's Tasks Screen
+![Today's Tasks](screenshots/today-tasks.png)
+*View and manage your daily tasks with tags, priorities, and due dates*
+
+#### Timer Screen
+![Timer](screenshots/timer.png)
+*Focus timer to track time spent on tasks*
+
+#### Data Visualization Screen
+![Data Visualization](screenshots/data-visualization.png)
+*Analyze your time allocation with interactive charts*
+
+#### Profile & Settings Screen
+![Profile](screenshots/profile.png)
+*Customize your profile, manage tags, and adjust settings*
+
+#### Theme Shop
+![Theme Shop](screenshots/theme-shop.png)
+*Purchase and apply custom themes with coins*
+
+### Features Showcase
+
+#### Task Management
+- Create tasks with title, description, due date, priority, and tags
+- Mark tasks as complete
+- Edit and delete tasks
+- Filter tasks by date, tag, or completion status
+
+#### Time Tracking
+- Start/stop timer for tasks
+- View time spent on each task
+- Visual time blocks showing daily activity
+
+#### Theme System
+- Multiple pre-built themes (Classic Light, Classic Dark, Ocean, Sunset, etc.)
+- Gradient and solid color themes
+- Dynamic theme application across all screens
+
+#### User Profile
+- Customizable avatar (camera or photo library)
+- Username and password management
+- Personal motto display
+- Tag management with custom colors
+
+## 🔧 Development
+
+### Code Style
+
+- TypeScript for type safety
+- ESLint for code quality
+- Functional components with React Hooks
+- Context API for state management
+
+### Testing
+
+```bash
+cd my-app
+npm test
+```
+
+### Linting
+
+```bash
+cd my-app
+npm run lint
+```
+
+## 🌐 API Configuration
+
+The app automatically detects the correct API URL based on the runtime environment. For manual configuration, edit `my-app/utils/apiConfig.ts`:
+
+- **Android Emulator**: Uses `10.0.2.2:3000` (maps to host machine)
+- **iOS Simulator**: Uses `localhost:3000`
+- **Real Device**: Extracts IP from Expo Host URI or uses `MANUAL_IP`
+- **Web**: Uses `localhost:3000` or `MANUAL_IP`
+
+## 📝 Key Features
+
+### Task Management
+- ✅ Create, edit, and delete tasks
+- 📅 Set due dates and priorities
+- 🏷️ Organize with custom tags
+- 📊 Track completion status
+
+### Time Tracking
+- ⏱️ Built-in focus timer
+- 📈 Time visualization charts
+- 📊 Daily/weekly/monthly statistics
+
+### Personalization
+- 🎨 Multiple theme options
+- 🌓 Dark/light mode support
+- 🌐 English/Chinese language support
+- 👤 Customizable user profile
+
+### Gamification
+- 🪙 Coin rewards system
+- 🏆 Achievement notifications
+- 🛒 Theme shop
+
+## 🐛 Troubleshooting
+
+### Backend Connection Issues
+
+1. **Check if backend is running**: Ensure the backend server is started on port 3000
+2. **Verify MongoDB connection**: Check that MongoDB is running and accessible
+3. **Check API URL**: Verify the API URL in the app logs matches your backend address
+4. **Firewall**: Ensure port 3000 is not blocked by firewall
+
+### Frontend Issues
+
+1. **Clear cache**: Run `npx expo start --clear`
+2. **Reinstall dependencies**: Delete `node_modules` and run `npm install`
+3. **Reset Metro bundler**: Stop the server and restart
+
+### Network Issues (Real Device)
+
+1. Ensure device and computer are on the same Wi-Fi network
+2. Update `MANUAL_IP` in `utils/apiConfig.ts` to your computer's IP address
+3. Check that backend server listens on `0.0.0.0` not just `localhost`
+
+## 📄 License
 
 ISC
 
-## 👥 贡献者
+## 👥 Contributors
 
 - Peggy1017
 
-## 📧 联系方式
+## 📧 Contact & Support
 
-如有问题或建议，请提交 Issue 或 Pull Request。
+For issues, questions, or contributions, please:
+- Open an issue on GitHub
+- Submit a pull request
+- Contact the maintainers
 
+---
+
+**Note**: This project uses Expo SDK 54. Some features (like push notifications) require a development build instead of Expo Go. See [Expo Development Builds](https://docs.expo.dev/develop/development-builds/introduction/) for more information.
